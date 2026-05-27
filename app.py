@@ -634,6 +634,7 @@ def call_deepseek(pgn, level, api_key):
         raise Exception(f"API 错误 ({e.code}): {error_body[:200]}")
     except json.JSONDecodeError as e:
         print(f"[DEBUG] JSON parse failed: {e}", flush=True)
+        print(f"[DEBUG] Content that failed to parse: {repr(content[:500])}", flush=True)
         raise Exception(f"AI 返回的不是有效 JSON: {str(e)[:200]}")
     except Exception as e:
         raise Exception(f"API 调用失败: {str(e)}")
