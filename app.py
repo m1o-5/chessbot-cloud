@@ -676,13 +676,13 @@ class ChessHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/version":
-            self.send_json(200, {"version": "4a60665", "fix": "strict=False"})
+            self.send_json(200, {"version": "9c05b58", "fix": "full-key"})
             return
         if self.path == "/" or self.path == "/index.html":
             # 如果有预设的 API Key，填入表单
             html = FORM_HTML
             if DEEPSEEK_API_KEY:
-                html = html.replace("__API_KEY_SET__", DEEPSEEK_API_KEY[:8] + "..." if len(DEEPSEEK_API_KEY) > 8 else DEEPSEEK_API_KEY)
+                html = html.replace("__API_KEY_SET__", DEEPSEEK_API_KEY)
             else:
                 html = html.replace("__API_KEY_SET__", "")
             
