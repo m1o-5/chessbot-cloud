@@ -3,7 +3,7 @@ services:
     name: chess-analyzer
     runtime: python
     plan: free
-    buildCommand: ""
+    buildCommand: "echo deploy-77823bf && git log --oneline -1"
     startCommand: python app.py
     envVars:
       - key: DEEPSEEK_API_KEY
