@@ -765,7 +765,10 @@ class ChessHandler(http.server.BaseHTTPRequestHandler):
             })
             
         except Exception as e:
-            self.send_json(500, {"error": str(e)})
+            import traceback
+            tb = traceback.format_exc()
+            print(f"[DEBUG] Exception: {e}\n{tb}", flush=True)
+            self.send_json(500, {"error": str(e), "traceback": tb[-500:]})
 
     def send_json(self, code, data):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
