@@ -557,7 +557,7 @@ document.querySelectorAll('.group').forEach((g,i)=>{{if(i<3)g.classList.add('ope
 # ========== DeepSeek API 调用 ==========
 def call_deepseek(pgn, level, api_key):
     """调用 DeepSeek API 分析 PGN"""
-    prompt = ANALYSIS_PROMPT[level].format(pgn=pgn)
+    prompt = ANALYSIS_PROMPT[level].replace("{pgn}", pgn)
     
     payload = json.dumps({
         "model": DEEPSEEK_MODEL,
