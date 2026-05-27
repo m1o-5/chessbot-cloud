@@ -676,7 +676,7 @@ class ChessHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/version":
-            self.send_json(200, {"version": "6bce4f6", "fix": "strict=False"})
+            self.send_json(200, {"version": "4a60665", "fix": "strict=False"})
             return
         if self.path == "/" or self.path == "/index.html":
             # 如果有预设的 API Key，填入表单
