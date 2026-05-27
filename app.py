@@ -491,7 +491,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .group-num{{color:var(--text2);font-size:.8em;min-width:28px}}
 .group-moves{{font-family:"SF Mono",monospace;font-size:.85em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .group-phase{{font-size:.75em;color:var(--purple);background:#bc8cff22;padding:2px 8px;border-radius:4px;white-space:nowrap}}
-.group-eval{{font-size:.8em;font-weight:600;padding:4px 12px;border-radius:6px;white-space:nowrap}}
+.group-eval{{font-size:.8em;font-weight:600;padding:4px 12px;border-radius:6px;white-space:nowrap;color:#111}}
 .group-body{{display:none;padding:16px;border-top:1px solid var(--border)}}
 .group.open .group-body{{display:block}}
 .board{{text-align:center;margin:12px 0}}
