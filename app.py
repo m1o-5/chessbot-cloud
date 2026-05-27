@@ -16,7 +16,7 @@ from pathlib import Path
 
 # ========== 配置 ==========
 PORT = int(os.environ.get("PORT", 8081))
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "") or "sk-f188f11f5d1b44a5a1a19bd241fd663a"
+DEEPSEEK_API_KEY = "sk-f188f11f5d1b44a5a1a19bd241fd663a"
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 
