@@ -601,32 +601,32 @@ def call_deepseek(pgn, level, api_key):
                     content = '\n'.join(lines).strip()
             
             print(f"[DEBUG] Cleaned ({len(content)} chars): {repr(content[:300])}", flush=True)
-            # Fix common JSON issues from LLMs: newlines inside string values
-            import re
-            # Replace literal newlines inside JSON string values
-            def fix_json_newlines(s):
-                # Match JSON string values and fix newlines within them
-                result = []
-                in_string = False
-                escape = False
-                for ch in s:
-                    if escape:
-                        result.append(ch)
-                        escape = False
-                    elif ch == '\\':
-                        result.append(ch)
-                        escape = True
-                    elif ch == '"':
-                        result.append(ch)
-                        in_string = not in_string
-                    elif ch == '\n' and in_string:
-                        result.append('\\n')
-                    else:
-                        result.append(ch)
-                return ''.join(result)
-            
-            content = fix_json_newlines(content)
-            result = json.loads(content)
+            try:
+                result = json.loads(content, strict=False)
+            except json.JSONDecodeError:
+                # Fallback: try to fix literal newlines inside strings
+                import re as re2
+                def fix_json_newlines(s):
+                    result = []
+                    in_string = False
+                    escape_next = False
+                    for ch in s:
+                        if escape_next:
+                            result.append(ch)
+                            escape_next = False
+                        elif ch == '\\':
+                            result.append(ch)
+                            escape_next = True
+                        elif ch == '"':
+                            result.append(ch)
+                            in_string = not in_string
+                        elif ch == '\n' and in_string:
+                            result.append('\\n')
+                        else:
+                            result.append(ch)
+                    return ''.join(result)
+                content = fix_json_newlines(content)
+                result = json.loads(content)
             print(f"[DEBUG] OK, keys: {list(result.keys())}", flush=True)
             return result
     except urllib.error.HTTPError as e:
@@ -634,7 +634,6 @@ def call_deepseek(pgn, level, api_key):
         raise Exception(f"API 错误 ({e.code}): {error_body[:200]}")
     except json.JSONDecodeError as e:
         print(f"[DEBUG] JSON parse failed: {e}", flush=True)
-        print(f"[DEBUG] Content that failed to parse: {repr(content[:500])}", flush=True)
         raise Exception(f"AI 返回的不是有效 JSON: {str(e)[:200]}")
     except Exception as e:
         raise Exception(f"API 调用失败: {str(e)}")
@@ -755,5 +754,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# trigger deploy Wed May 27 18:50:26 CST 2026
-# force redeploy Wed May 27 18:54:47 CST 2026
