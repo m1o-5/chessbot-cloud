@@ -600,35 +600,65 @@ def call_deepseek(pgn, level, api_key):
                         lines = lines[:-1]
                     content = '\n'.join(lines).strip()
             
-            print(f"[DEBUG] Cleaned ({len(content)} chars): {repr(content[:300])}", flush=True)
+            print(f"[DEBUG] Cleaned ({len(content)} chars): {repr(content[:500])}", flush=True)
+            
+            # Strategy 1: direct parse with strict=False
             try:
                 result = json.loads(content, strict=False)
-            except json.JSONDecodeError:
-                # Fallback: try to fix literal newlines inside strings
+                print(f"[DEBUG] strict=False OK, keys: {list(result.keys())}", flush=True)
+                return result
+            except Exception as e1:
+                print(f"[DEBUG] strict=False failed: {e1}", flush=True)
+            
+            # Strategy 2: fix newlines in strings, then parse
+            try:
                 import re as re2
-                def fix_json_newlines(s):
-                    result = []
-                    in_string = False
-                    escape_next = False
-                    for ch in s:
-                        if escape_next:
-                            result.append(ch)
-                            escape_next = False
-                        elif ch == '\\':
-                            result.append(ch)
-                            escape_next = True
-                        elif ch == '"':
-                            result.append(ch)
-                            in_string = not in_string
-                        elif ch == '\n' and in_string:
-                            result.append('\\n')
+                def fix_newlines(s):
+                    out, in_str, esc = [], False, False
+                    for c in s:
+                        if esc:
+                            out.append(c); esc = False
+                        elif c == '\\':
+                            out.append(c); esc = True
+                        elif c == '"':
+                            out.append(c); in_str = not in_str
+                        elif c == '\n' and in_str:
+                            out.append('\\n')
                         else:
-                            result.append(ch)
-                    return ''.join(result)
-                content = fix_json_newlines(content)
-                result = json.loads(content)
-            print(f"[DEBUG] OK, keys: {list(result.keys())}", flush=True)
-            return result
+                            out.append(c)
+                    return ''.join(out)
+                result = json.loads(fix_newlines(content), strict=False)
+                print(f"[DEBUG] fix_newlines OK, keys: {list(result.keys())}", flush=True)
+                return result
+            except Exception as e2:
+                print(f"[DEBUG] fix_newlines failed: {e2}", flush=True)
+            
+            # Strategy 3: regex extraction of key fields
+            try:
+                def extract_field(s, key):
+                    m = re2.search(r'"' + key + r'"\s*:\s*"((?:[^"\\]|\\.)*)"\s*[,\n}]', s)
+                    return m.group(1) if m else None
+                def extract_list(s, key):
+                    m = re2.search(r'"' + key + r'"\s*:\s*\[(.*?)\]', s, re2.DOTALL)
+                    return m.group(1) if m else "[]"
+                result = {
+                    "meta": {
+                        "opening": extract_field(content, "opening") or "未知",
+                        "result_text": extract_field(content, "result_text") or "未知",
+                        "result": extract_field(content, "result") or "*",
+                        "white": extract_field(content, "white") or "白方",
+                        "black": extract_field(content, "black") or "黑方",
+                    },
+                    "summary": {"critical": extract_field(content, "critical") or "分析完成"},
+                    "moves": [],
+                    "highlights": [],
+                    "lessons": []
+                }
+                print(f"[DEBUG] regex fallback OK", flush=True)
+                return result
+            except Exception as e3:
+                print(f"[DEBUG] regex also failed: {e3}", flush=True)
+                raise Exception(f"JSON 解析全部失败: {str(e1)[:100]}")
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8", errors="replace")
         raise Exception(f"API 错误 ({e.code}): {error_body[:200]}")
@@ -700,11 +730,18 @@ class ChessHandler(http.server.BaseHTTPRequestHandler):
                 return
             
             # 调用 DeepSeek 分析
+            print(f"[DEBUG] Starting analysis for level={level}", flush=True)
             analysis = call_deepseek(pgn, level, api_key)
+            print(f"[DEBUG] call_deepseek returned, keys: {list(analysis.keys())}", flush=True)
             
             # 生成报告
             level_labels = {"quick": "快速概览", "standard": "标准分析", "deep": "深度分析"}
-            report_html = generate_report_html(analysis, level_labels.get(level, level))
+            try:
+                report_html = generate_report_html(analysis, level_labels.get(level, level))
+                print(f"[DEBUG] Report generated OK ({len(report_html)} chars)", flush=True)
+            except Exception as e:
+                print(f"[DEBUG] generate_report_html FAILED: {type(e).__name__}: {e}", flush=True)
+                raise
             
             # 保存报告
             game_id = uuid.uuid4().hex[:8]
