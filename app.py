@@ -16,7 +16,7 @@ from pathlib import Path
 
 # ========== 配置 ==========
 PORT = int(os.environ.get("PORT", 8081))
-DEEPSEEK_API_KEY = "sk-f188f11f5d1b44a5a1a19bd241fd663a"
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 
@@ -57,10 +57,6 @@ select{background:#161b22;border:1px solid #30363d;border-radius:6px;color:#e6ed
 .ex summary{cursor:pointer;color:#58a6ff;font-size:.85em}
 .ex pre{background:#0d1117;padding:8px;border-radius:4px;font-size:11px;margin-top:8px;overflow-x:auto;white-space:pre}
 .ft{text-align:center;margin-top:32px;color:#484f58;font-size:.75em}
-.api{margin-top:16px;padding:12px;background:#161b22;border:1px solid #30363d;border-radius:8px}
-.api input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:8px;font-size:.85em;outline:none;margin-top:4px}
-.api input:focus{border-color:#58a6ff}
-.api .hint{font-size:.75em;color:#484f58;margin-top:4px}
 </style>
 </head>
 <body>
@@ -68,13 +64,7 @@ select{background:#161b22;border:1px solid #30363d;border-radius:6px;color:#e6ed
 <h1>🐉 棋局分析</h1>
 <p class="sub">粘贴 PGN → AI 分析 → 深色主题报告</p>
 
-<div class="api">
-<label>🔑 DeepSeek API Key</label>
-<input type="password" id="apiKey" placeholder="sk-..." value="__API_KEY_SET__">
-<p class="hint">你的 API Key 仅用于本次分析，不会被存储。<a href="https://platform.deepseek.com" target="_blank" style="color:#58a6ff">获取 Key</a></p>
-</div>
-
-<label for="pgn" style="margin-top:16px">📝 PGN 棋谱</label>
+<label for="pgn" style="margin-top:8px">📝 PGN 棋谱</label>
 <textarea id="pgn" placeholder="粘贴 PGN 到这里...&#10;&#10;支持格式：&#10;[Event &quot;...&quot;]&#10;1. e4 e5 2. Nf3 Nc6 ..."></textarea>
 
 <div class="opts">
@@ -108,18 +98,16 @@ select{background:#161b22;border:1px solid #30363d;border-radius:6px;color:#e6ed
 async function analyze(){
 const pgn=document.getElementById('pgn').value.trim();
 const level=document.getElementById('level').value;
-const apiKey=document.getElementById('apiKey').value.trim();
 const btn=document.getElementById('btn');
 const st=document.getElementById('st');
 
 if(!pgn){show('er','❌ 请粘贴 PGN 棋谱');return}
-if(!apiKey){show('er','❌ 请输入 DeepSeek API Key');return}
 
 btn.disabled=true;btn.textContent='⏳ 分析中...';
 show('ld','<span class="sp"></span>AI 正在分析，请稍候...（约 30-90 秒）');
 
 try{
-const r=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pgn,level,apiKey})});
+const r=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pgn,level})});
 const d=await r.json();
 if(d.error){show('er','❌ '+d.error)}
 else{show('ok','✅ 分析完成！开局：'+d.opening+' | 结果：'+d.result);setTimeout(()=>{window.location.href=d.url},1200)}
@@ -679,17 +667,10 @@ class ChessHandler(http.server.BaseHTTPRequestHandler):
             self.send_json(200, {"version": "9c05b58", "fix": "full-key"})
             return
         if self.path == "/" or self.path == "/index.html":
-            # 如果有预设的 API Key，填入表单
-            html = FORM_HTML
-            if DEEPSEEK_API_KEY:
-                html = html.replace("__API_KEY_SET__", DEEPSEEK_API_KEY)
-            else:
-                html = html.replace("__API_KEY_SET__", "")
-            
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(html.encode("utf-8"))
+            self.wfile.write(FORM_HTML.encode("utf-8"))
         elif self.path.startswith("/report/"):
             filename = self.path.split("/")[-1]
             filepath = REPORT_DIR / filename
@@ -717,13 +698,12 @@ class ChessHandler(http.server.BaseHTTPRequestHandler):
             data = json.loads(body)
             pgn = data.get("pgn", "").strip()
             level = data.get("level", "standard")
-            api_key = data.get("apiKey", "").strip() or DEEPSEEK_API_KEY
-            
+
             if not pgn:
                 self.send_json(400, {"error": "PGN 不能为空"})
                 return
-            if not api_key:
-                self.send_json(400, {"error": "请输入 DeepSeek API Key"})
+            if not DEEPSEEK_API_KEY:
+                self.send_json(400, {"error": "服务器未配置 API Key"})
                 return
             if level not in ANALYSIS_PROMPT:
                 self.send_json(400, {"error": "无效的分析级别"})
@@ -731,7 +711,7 @@ class ChessHandler(http.server.BaseHTTPRequestHandler):
             
             # 调用 DeepSeek 分析
             print(f"[DEBUG] Starting analysis for level={level}", flush=True)
-            analysis = call_deepseek(pgn, level, api_key)
+            analysis = call_deepseek(pgn, level, DEEPSEEK_API_KEY)
             print(f"[DEBUG] call_deepseek returned, keys: {list(analysis.keys())}", flush=True)
             
             # 生成报告
@@ -783,7 +763,7 @@ class ChessHandler(http.server.BaseHTTPRequestHandler):
 def main():
     print(f"🐉 棋局分析 Web 服务 (云端版)")
     print(f"📱 监听端口: {PORT}")
-    print(f"🔑 API Key: {'已配置' if DEEPSEEK_API_KEY else '未配置（用户自行输入）'}")
+    print(f"🔑 API Key: {'已配置' if DEEPSEEK_API_KEY else '❌ 未设置 DEEPSEEK_API_KEY 环境变量'}")
     print(f"🤖 模型: {DEEPSEEK_MODEL}")
     print()
     
